@@ -1,0 +1,21 @@
+version: '3.8'
+
+# CPU-only override for systems without GPU
+services:
+  ollama:
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+    environment:
+      - OLLAMA_ORIGINS=*
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=2
+    # Remove GPU configuration
+    deploy:
+      resources:
+        limits:
+          memory: 8G

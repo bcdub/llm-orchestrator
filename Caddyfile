@@ -1,0 +1,159 @@
+# Caddyfile for LLM Orchestrator
+# Automatic HTTPS with Let's Encrypt
+
+{$DOMAIN_NAME:localhost} {
+    # Main chat interface
+    handle / {
+        reverse_proxy open-webui:8080
+    }
+    
+    # AgentScope Studio
+    handle /agents/* {
+        reverse_proxy agentscope-runtime:8080
+    }
+    
+    # n8n workflows
+    handle /workflows/* {
+        reverse_proxy n8n:5678
+    }
+    
+    # Langfuse observability
+    handle /observability/* {
+        reverse_proxy langfuse:3000
+    }
+    
+    # Supabase admin
+    handle /admin/* {
+        reverse_proxy supabase-studio:3000
+    }
+    
+    # Neo4j browser
+    handle /graph/* {
+        reverse_proxy neo4j:7474
+    }
+    
+    # Qdrant dashboard
+    handle /vectors/* {
+        reverse_proxy qdrant:6333
+    }
+    
+    # SearXNG search
+    handle /search/* {
+        reverse_proxy searxng:8080
+    }
+    
+    # API endpoints
+    handle /api/* {
+        reverse_proxy agentscope-runtime:8080
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+    
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent MIME sniffing
+        X-Content-Type-Options nosniff
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer policy
+        Referrer-Policy strict-origin-when-cross-origin
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;"
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    
+    # Rate limiting
+    rate_limit {
+        zone static {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+}
+
+# Admin interface (separate subdomain)
+admin.{$DOMAIN_NAME:localhost} {
+    # Supabase Studio
+    handle /db/* {
+        reverse_proxy supabase-studio:3000
+    }
+    
+    # Neo4j Browser
+    handle /graph/* {
+        reverse_proxy neo4j:7474
+    }
+    
+    # Qdrant Dashboard
+    handle /vectors/* {
+        reverse_proxy qdrant:6333
+    }
+    
+    # n8n Workflows
+    handle /workflows/* {
+        reverse_proxy n8n:5678
+    }
+    
+    # Langfuse Observability
+    handle /observability/* {
+        reverse_proxy langfuse:3000
+    }
+    
+    # Default to Supabase Studio
+    handle {
+        reverse_proxy supabase-studio:3000
+    }
+    
+    # Basic auth for admin interface
+    basicauth {
+        admin {$ADMIN_PASSWORD_HASH}
+    }
+}
+
+# API subdomain
+api.{$DOMAIN_NAME:localhost} {
+    # AgentScope API
+    handle /v1/* {
+        reverse_proxy agentscope-runtime:8080
+    }
+    
+    # Ollama API
+    handle /ollama/* {
+        reverse_proxy ollama:11434
+    }
+    
+    # Direct model access
+    handle /models/* {
+        reverse_proxy ollama:11434
+    }
+    
+    # Health checks
+    handle /health {
+        respond "API OK" 200
+    }
+    
+    # CORS headers for API
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+    }
+    
+    # Handle preflight requests
+    @options method OPTIONS
+    handle @options {
+        respond "" 204
+    }
+}
